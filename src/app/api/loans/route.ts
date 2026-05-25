@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { calculateMonthlyRepayment } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 const loanApplicationSchema = z.object({
   amount: z.number().min(500).max(100000),
   termMonths: z.number().min(1).max(36),
