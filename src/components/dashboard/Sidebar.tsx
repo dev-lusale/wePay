@@ -57,7 +57,7 @@ export function Sidebar({ onClose }: SidebarProps) {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+              : pathname?.startsWith(item.href) ?? false;
 
           return (
             <Link
