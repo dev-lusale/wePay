@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BORROWER
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+}
+
+enum RepaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum TransactionType {
+  DISBURSEMENT
+  REPAYMENT
+  FEE
+}
+
+model User {
+  id                String             @id @default(cuid())
+  email             String             @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String
+  nrcNumber         String             @unique
+  role              Role               @default(BORROWER)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  employmentProfile EmploymentProfile?
+  creditProfile     CreditProfile?
+  loans             Loan[]
+  transactions      Transaction[]
+
+  @@map("users")
+}
+
+model EmploymentProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employerName       String
+  napsaNumber        String             @unique
+  monthlySalary      Decimal            @db.Decimal(12, 2)
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("employment_profiles")
+}
+
+model CreditProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transunionScore Int?
+  reportDate      DateTime?
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("credit_profiles")
+}
+
+model Loan {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount           Decimal         @db.Decimal(12, 2)
+  interestRate     Decimal         @db.Decimal(5, 2)
+  termMonths       Int
+  monthlyRepayment Decimal         @db.Decimal(12, 2)
+  status           LoanStatus      @default(PENDING)
+  disbursedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  repayments       LoanRepayment[]
+
+  @@map("loans")
+}
+
+model LoanRepayment {
+  id      String          @id @default(cuid())
+  loanId  String
+  loan    Loan            @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  dueDate DateTime
+  amount  Decimal         @db.Decimal(12, 2)
+  paidAt  DateTime?
+  status  RepaymentStatus @default(PENDING)
+
+  @@map("loan_repayments")
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  amount      Decimal         @db.Decimal(12, 2)
+  description String
+  createdAt   DateTime        @default(now())
+
+  @@map("transactions")
+}
