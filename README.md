@@ -137,3 +137,17 @@ npm run db:studio    # Open Prisma Studio
 ## License
 
 MIT © WePay Financial Services Ltd.
+
+---
+
+## 📱 Android app
+
+A native Android app lives in [`apps/mobile`](apps/mobile). It is built with React Native and Expo and uses this same backend and the same user accounts.
+
+![WePay Android app](docs/screenshots/showcase.png)
+
+- **Mobile API & auth:** short-lived bearer tokens with rotating refresh tokens, plus revocable device sessions. Existing API routes accept either the web cookie or a mobile token. See [`docs/MOBILE_AUDIT_AND_PLAN.md`](docs/MOBILE_AUDIT_AND_PLAN.md).
+- **Deploy & build APK/AAB:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+- **New env var:** `MOBILE_JWT_SECRET` (required). SMTP settings are optional and enable password reset.
+- **Schema:** adds 4 tables only (`mobile_sessions`, `password_reset_tokens`, `audit_logs`, `rate_limit_buckets`). Run `npm run db:push`, or use `prisma/sql/001_mobile_support.sql`.
+- **Tests:** `npm run test:api` runs the API integration tests against a disposable Postgres database.
