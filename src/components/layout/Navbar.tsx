@@ -2,14 +2,32 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function WePayLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const sizes = { sm: "text-xl", md: "text-2xl", lg: "text-4xl" };
+  const markHeight = { sm: 20, md: 26, lg: 40 };
   return (
-    <span className={`font-black ${sizes[size]} tracking-tight`}>
+    <span className="inline-flex items-center gap-2">
+      <Image
+        src="/brand/wepay-mark.png"
+        alt=""
+        aria-hidden
+        width={Math.round(markHeight[size] * (600 / 390))}
+        height={markHeight[size]}
+        priority
+      />
+      <WePayWordmark className={`font-black ${sizes[size]} tracking-tight`} />
+    </span>
+  );
+}
+
+function WePayWordmark({ className }: { className: string }) {
+  return (
+    <span className={className}>
       <span className="text-red-500">W</span>
       <span className="text-blue-500">e</span>
       <span className="text-green-500">P</span>
