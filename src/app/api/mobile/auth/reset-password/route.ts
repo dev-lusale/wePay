@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const hashed = await bcrypt.hash(newPassword, 12);
   await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { password: hashed } }),
+    prisma.user.update({ where: { id: user.id }, data: { password: hashed, passwordChangedAt: new Date() } }),
     prisma.passwordResetToken.update({ where: { id: token.id }, data: { usedAt: new Date() } }),
   ]);
   const revoked = await revokeAllSessions(user.id, "password_reset");

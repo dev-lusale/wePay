@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "./api";
 import type {
   Analytics,
+  CardResponse,
   DashboardStats,
   DeviceSession,
   Loan,
@@ -11,6 +12,7 @@ import type {
   Profile,
   Transaction,
   TransactionType,
+  TxSummary,
 } from "./types";
 
 export const keys = {
@@ -23,6 +25,8 @@ export const keys = {
   transaction: (id: string) => ["transaction", id] as const,
   analytics: (m: number) => ["analytics", m] as const,
   sessions: ["sessions"] as const,
+  card: ["card"] as const,
+  txSummary: ["txSummary"] as const,
 };
 
 export const useProfile = () => useQuery({ queryKey: keys.profile, queryFn: () => api<Profile>("/api/user/profile") });
@@ -102,5 +106,38 @@ export function useRevokeSession() {
   return useMutation({
     mutationFn: (id: string) => api(`/api/mobile/auth/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.sessions }),
+  });
+}
+
+export const useCard = () => useQuery({ queryKey: keys.card, queryFn: () => api<CardResponse>("/api/cards") });
+export const useTxSummary = () =>
+  useQuery({ queryKey: keys.txSummary, queryFn: () => api<TxSummary>("/api/transactions/summary") });
+
+export function useRequestCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (network: "VISA" | "MASTERCARD") => api<CardResponse>("/api/cards", { body: { network } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.card }),
+  });
+}
+
+export function useCardAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; action: "freeze" | "unfreeze" | "cancel" }) =>
+      api<CardResponse>(`/api/cards/${encodeURIComponent(v.id)}`, { method: "PATCH", body: { action: v.action } }),
+    onSuccess: (data) => qc.setQueryData<CardResponse>(keys.card, (old) => ({ issuerConnected: old?.issuerConnected ?? false, card: data.card })),
+  });
+}
+
+export function useChangePassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { currentPassword: string; newPassword: string }) =>
+      api<{ message: string; passwordChangedAt: string; otherSessionsRevoked: number }>("/api/mobile/auth/change-password", { body: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.profile });
+      qc.invalidateQueries({ queryKey: keys.sessions });
+    },
   });
 }

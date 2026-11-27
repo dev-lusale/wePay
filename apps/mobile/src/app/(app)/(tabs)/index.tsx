@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Bell, ChartNoAxesColumn, FilePlus2, Landmark, ArrowLeftRight, CalendarClock } from "lucide-react-native";
+import { Bell, CreditCard, FilePlus2, Landmark, ArrowLeftRight, CalendarClock } from "lucide-react-native";
 import { HeroHeader, Screen } from "@/components/Screen";
 import { AppText, Avatar, Card, EmptyState, ErrorState, ListSkeleton, SectionHeader, Skeleton, ProgressBar } from "@/components/ui";
 import { BalanceCard, LoanStatusBadge, QuickAction, TransactionRow } from "@/components/finance";
@@ -73,9 +73,17 @@ export default function Home() {
       <View style={styles.actions}>
         <QuickAction icon={FilePlus2} label="Apply" onPress={() => router.push("/loans/apply")} />
         <QuickAction icon={Landmark} label="My loans" onPress={() => router.push("/loans")} />
+        <QuickAction icon={CreditCard} label="Card" onPress={() => router.push("/card")} />
         <QuickAction icon={ArrowLeftRight} label="Activity" onPress={() => router.push("/transactions")} />
-        <QuickAction icon={ChartNoAxesColumn} label="Insights" onPress={() => router.push("/analytics")} />
       </View>
+
+      {stats.data ? (
+        <View style={styles.stats}>
+          <Stat label="Available credit" value={formatZMW(stats.data.availableCredit, { decimals: 0 })} />
+          <Stat label="Active loans" value={String(stats.data.activeLoans)} />
+          <Stat label="Monthly salary" value={formatZMW(stats.data.monthlySalary, { decimals: 0 })} />
+        </View>
+      ) : null}
 
       {/* Active loan */}
       <SectionHeader title="Current loan" action={loans.data?.length ? "See all" : undefined} onAction={() => router.push("/loans")} />
@@ -138,7 +146,18 @@ export default function Home() {
   );
 }
 
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.stat}>
+      <AppText variant="small" color={colors.textMuted} numberOfLines={1}>{label}</AppText>
+      <AppText variant="h3" numberOfLines={1} adjustsFontSizeToFit>{value}</AppText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  stats: { flexDirection: "row", gap: space.sm, marginTop: -space.md, marginBottom: space.xxl },
+  stat: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, gap: 2 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   bell: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.navy2, alignItems: "center", justifyContent: "center" },
   dot: { position: "absolute", top: 10, right: 11, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mint },

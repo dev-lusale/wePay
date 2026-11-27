@@ -34,6 +34,7 @@ export interface Profile {
   phone: string;
   nrcNumber: string;
   role: string;
+  passwordChangedAt: string | null;
   createdAt: string;
   employmentProfile: {
     employerName: string;
@@ -173,4 +174,28 @@ export interface DeviceSession {
   lastUsedAt: string;
   ipAddress: string | null;
   current: boolean;
+}
+
+export type CardStatus = "REQUESTED" | "ACTIVE" | "CANCELLED";
+export interface VirtualCard {
+  id: string;
+  network: "VISA" | "MASTERCARD";
+  status: CardStatus;
+  frozen: boolean;
+  last4: string | null;
+  expiryMonth: number | null;
+  expiryYear: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CardResponse {
+  card: VirtualCard | null;
+  issuerConnected: boolean;
+}
+
+export interface TxSummary {
+  totalDisbursed: number;
+  totalRepaid: number;
+  totalFees: number;
+  count: number;
 }

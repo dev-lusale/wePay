@@ -35,6 +35,12 @@ enum RepaymentStatus {
   OVERDUE
 }
 
+enum CardStatus {
+  REQUESTED
+  ACTIVE
+  CANCELLED
+}
+
 enum TransactionType {
   DISBURSEMENT
   REPAYMENT
@@ -50,6 +56,7 @@ model User {
   phone             String
   nrcNumber         String             @unique
   role              Role               @default(BORROWER)
+  passwordChangedAt DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   employmentProfile EmploymentProfile?
@@ -59,6 +66,7 @@ model User {
   mobileSessions    MobileSession[]
   passwordResets    PasswordResetToken[]
   auditLogs         AuditLog[]
+  virtualCard       VirtualCard?
 
   @@map("users")
 }
@@ -191,4 +199,23 @@ model RateLimitBucket {
   windowStart DateTime
 
   @@map("rate_limit_buckets")
+}
+
+/// A user's virtual card. Created as REQUESTED; it only becomes ACTIVE (with
+/// last4/expiry) when a licensed card issuer provisions it. Full card numbers
+/// and CVVs are never stored here — they would live with the issuer.
+model VirtualCard {
+  id         String     @id @default(cuid())
+  userId     String     @unique
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  network    String     @default("VISA")
+  status     CardStatus @default(REQUESTED)
+  frozen     Boolean    @default(false)
+  last4      String?
+  expiryMonth Int?
+  expiryYear Int?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("virtual_cards")
 }

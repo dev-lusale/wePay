@@ -15,7 +15,12 @@ export type AuditAction =
   | "PASSWORD_RESET_REQUESTED"
   | "PASSWORD_RESET_FAILED"
   | "PASSWORD_RESET_COMPLETED"
-  | "LOAN_APPLICATION_SUBMITTED";
+  | "LOAN_APPLICATION_SUBMITTED"
+  | "PASSWORD_CHANGED"
+  | "CARD_REQUESTED"
+  | "CARD_FROZEN"
+  | "CARD_UNFROZEN"
+  | "CARD_CANCELLED";
 
 /**
  * Records a security- or money-relevant event. Never pass passwords, tokens,

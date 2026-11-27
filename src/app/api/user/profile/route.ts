@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       phone: true,
       nrcNumber: true,
       role: true,
+      passwordChangedAt: true,
       createdAt: true,
       updatedAt: true,
       employmentProfile: true,

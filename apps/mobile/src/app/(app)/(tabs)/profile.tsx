@@ -2,7 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { confirmAction } from "@/lib/confirm";
 import { useRouter } from "expo-router";
-import { Briefcase, CircleHelp, FileLock2, Gauge, LogOut, ShieldCheck, UserRound } from "lucide-react-native";
+import { Briefcase, CircleHelp, CreditCard, FileLock2, Gauge, LogOut, ShieldCheck, UserRound } from "lucide-react-native";
 import { HeroHeader, Screen } from "@/components/Screen";
 import { AppText, Avatar, Badge, Button, ErrorState, ListRow, Skeleton } from "@/components/ui";
 import { useProfile } from "@/lib/queries";
@@ -52,11 +52,12 @@ export default function ProfileScreen() {
           onPress={() => router.push("/profile/employment")}
           right={p?.employmentProfile ? <Badge label={p.employmentProfile.verificationStatus === "VERIFIED" ? "Verified" : p.employmentProfile.verificationStatus === "FAILED" ? "Failed" : "Pending"} tone={p.employmentProfile.verificationStatus === "VERIFIED" ? "success" : p.employmentProfile.verificationStatus === "FAILED" ? "danger" : "warning"} /> : undefined}
         />
-        <ListRow icon={Gauge} title="Credit profile" subtitle="Credit check status" onPress={() => router.push("/profile/credit")} />
+        <ListRow icon={Gauge} title="Credit profile" subtitle="TransUnion credit check" onPress={() => router.push("/profile/credit")} />
+        <ListRow icon={CreditCard} title="Virtual card" subtitle="Request, freeze or cancel your card" onPress={() => router.push("/card")} />
       </View>
       <AppText variant="label" color={colors.textMuted} style={{ marginTop: space.xxl, marginBottom: space.sm }}>General</AppText>
       <View style={{ gap: space.sm }}>
-        <ListRow icon={ShieldCheck} title="Security" subtitle="Signed-in devices" onPress={() => router.push("/profile/security")} />
+        <ListRow icon={ShieldCheck} title="Security" subtitle="Password, fingerprint lock, devices" onPress={() => router.push("/profile/security")} />
         <ListRow icon={FileLock2} title="Privacy" subtitle="How your data is handled" onPress={() => router.push("/profile/privacy")} />
       </View>
       <AppText variant="label" color={colors.textMuted} style={{ marginTop: space.xxl, marginBottom: space.sm }}>Help centre</AppText>

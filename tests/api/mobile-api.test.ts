@@ -30,6 +30,10 @@ import * as loanById from "@/app/api/loans/[id]/route";
 import * as txs from "@/app/api/transactions/route";
 import * as txById from "@/app/api/transactions/[id]/route";
 import * as analytics from "@/app/api/analytics/route";
+import * as cards from "@/app/api/cards/route";
+import * as cardById from "@/app/api/cards/[id]/route";
+import * as txSummary from "@/app/api/transactions/summary/route";
+import * as changePassword from "@/app/api/mobile/auth/change-password/route";
 
 if (!process.env.DATABASE_URL?.includes("test")) {
   throw new Error("Refusing to run: DATABASE_URL must point at a *test* database (name containing 'test').");
@@ -331,14 +335,79 @@ describe("password reset", () => {
   });
 });
 
+describe("virtual cards", () => {
+  test("request, freeze/unfreeze, cancel — and isolation between users", async () => {
+    const a = await registerAndLogin("20");
+    const b = await registerAndLogin("21");
+    assert.equal((await call(cards.GET as any, { token: a.accessToken })).json.card, null);
+
+    const req1 = await call(cards.POST as any, { body: { network: "VISA" }, token: a.accessToken });
+    assert.equal(req1.status, 201);
+    assert.equal(req1.json.card.status, "REQUESTED");
+    assert.equal(req1.json.card.last4, null, "no card number until an issuer provisions it");
+    assert.equal((await call(cards.POST as any, { body: {}, token: a.accessToken })).status, 400, "one card per user");
+
+    const id = req1.json.card.id;
+    const fr = await call(cardById.PATCH as any, { method: "PATCH", body: { action: "freeze" }, token: a.accessToken, params: { id } });
+    assert.equal(fr.json.card.frozen, true);
+    assert.equal((await call(cardById.PATCH as any, { method: "PATCH", body: { action: "freeze" }, token: b.accessToken, params: { id } })).status, 404, "B can't touch A's card");
+    assert.equal((await call(cards.GET as any, { token: b.accessToken })).json.card, null);
+    const un = await call(cardById.PATCH as any, { method: "PATCH", body: { action: "unfreeze" }, token: a.accessToken, params: { id } });
+    assert.equal(un.json.card.frozen, false);
+
+    await call(cardById.PATCH as any, { method: "PATCH", body: { action: "cancel" }, token: a.accessToken, params: { id } });
+    assert.equal((await call(cards.GET as any, { token: a.accessToken })).json.card, null);
+    assert.equal((await call(cards.POST as any, { body: { network: "MASTERCARD" }, token: a.accessToken })).status, 201, "can re-request after cancelling");
+  });
+});
+
+describe("transaction summary", () => {
+  test("all-time totals per type, own records only", async () => {
+    const a = await registerAndLogin("22");
+    const b = await registerAndLogin("23");
+    await prisma.transaction.createMany({
+      data: [
+        { userId: a.userId, type: "DISBURSEMENT", amount: 4000, description: "d" },
+        { userId: a.userId, type: "REPAYMENT", amount: 400.5, description: "r1" },
+        { userId: a.userId, type: "REPAYMENT", amount: 400.5, description: "r2" },
+        { userId: a.userId, type: "FEE", amount: 25, description: "f" },
+      ],
+    });
+    const s = await call(txSummary.GET as any, { token: a.accessToken });
+    assert.deepEqual(s.json, { totalDisbursed: 4000, totalRepaid: 801, totalFees: 25, count: 4 });
+    assert.deepEqual((await call(txSummary.GET as any, { token: b.accessToken })).json, { totalDisbursed: 0, totalRepaid: 0, totalFees: 0, count: 0 });
+  });
+});
+
+describe("change password", () => {
+  test("needs current password, enforces rules, keeps this device, signs out others", async () => {
+    const a = await registerAndLogin("24");
+    const other = await call(login.POST as any, { body: { email: a.payload.email, password: a.payload.password }, ip: freshIp() });
+
+    const wrong = await call(changePassword.POST as any, { body: { currentPassword: "nope", newPassword: "NewPass123" }, token: a.accessToken });
+    assert.equal(wrong.status, 400);
+    const weak = await call(changePassword.POST as any, { body: { currentPassword: a.payload.password, newPassword: "weakpass" }, token: a.accessToken });
+    assert.equal(weak.status, 400);
+
+    const ok = await call(changePassword.POST as any, { body: { currentPassword: a.payload.password, newPassword: "NewPass123" }, token: a.accessToken });
+    assert.equal(ok.status, 200, JSON.stringify(ok.json));
+    assert.equal(ok.json.otherSessionsRevoked, 1);
+    assert.equal((await call(profile.GET as any, { token: a.accessToken })).status, 200, "current device stays signed in");
+    assert.equal((await call(profile.GET as any, { token: other.json.accessToken })).status, 401, "other device signed out");
+    const p = await call(profile.GET as any, { token: a.accessToken });
+    assert.ok(p.json.passwordChangedAt, "last-changed date recorded");
+    assert.equal((await call(login.POST as any, { body: { email: a.payload.email, password: "NewPass123" }, ip: freshIp() })).status, 200);
+  });
+});
+
 describe("audit trail", () => {
   test("records security events without secrets", async () => {
     const logs = await prisma.auditLog.findMany();
     const actions = new Set(logs.map((l) => l.action));
-    for (const a of ["REGISTER", "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGIN_RATE_LIMITED", "LOAN_APPLICATION_SUBMITTED", "LOGOUT", "LOGOUT_ALL", "PASSWORD_RESET_COMPLETED"]) {
+    for (const a of ["REGISTER", "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGIN_RATE_LIMITED", "LOAN_APPLICATION_SUBMITTED", "LOGOUT", "LOGOUT_ALL", "PASSWORD_RESET_COMPLETED", "PASSWORD_CHANGED", "CARD_REQUESTED", "CARD_FROZEN", "CARD_CANCELLED"]) {
       assert.ok(actions.has(a), `missing ${a}`);
     }
     const blob = JSON.stringify(logs);
-    assert.ok(!/Password-\d|NewPassword|refreshToken|accessToken/.test(blob), "no secrets in audit log");
+    assert.ok(!/Password-\d|NewPassword|NewPass123|refreshToken|accessToken/.test(blob), "no secrets in audit log");
   });
 });

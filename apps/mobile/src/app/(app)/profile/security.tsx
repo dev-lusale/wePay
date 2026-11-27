@@ -1,19 +1,25 @@
 import React from "react";
-import { View } from "react-native";
+import { Switch, View } from "react-native";
+import { useRouter } from "expo-router";
 import { confirmAction } from "@/lib/confirm";
-import { LogOut, Smartphone } from "lucide-react-native";
+import { Fingerprint, KeyRound, LogOut, Smartphone } from "lucide-react-native";
 import { Screen, TopBar } from "@/components/Screen";
-import { AppText, Badge, Button, Card, ErrorState, ListSkeleton } from "@/components/ui";
-import { useRevokeSession, useSessions } from "@/lib/queries";
+import { AppText, Badge, Button, Card, ErrorState, ListRow, ListSkeleton } from "@/components/ui";
+import { useProfile, useRevokeSession, useSessions } from "@/lib/queries";
+import { useAppLock } from "@/lib/applock";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { api, errorMessage, isNetworkError } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
 import { colors, space } from "@/lib/theme";
 
 export default function Security() {
   const q = useSessions();
   const revoke = useRevokeSession();
   const { signOut } = useAuth();
+  const router = useRouter();
+  const profile = useProfile();
+  const lock = useAppLock();
+  const [lockMsg, setLockMsg] = React.useState<string | null>(null);
 
   const signOutEverywhere = () =>
     confirmAction("Sign out of all devices?", "Every phone signed in to your WePay account, including this one, will need to sign in again.", "Sign out all", async () => {
@@ -26,6 +32,36 @@ export default function Security() {
 
   return (
     <Screen edgeTop={false} header={<TopBar title="Security" />} refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
+      <AppText variant="h3" style={{ marginBottom: space.sm }}>Sign-in & access</AppText>
+      <View style={{ gap: space.sm, marginBottom: space.xxl }}>
+        <ListRow
+          icon={KeyRound}
+          title="Password"
+          subtitle={`Last changed: ${profile.data?.passwordChangedAt ? formatDate(profile.data.passwordChangedAt) : "Never"}`}
+          onPress={() => router.push("/profile/change-password")}
+          right={<AppText variant="label" color={colors.turquoise}>Change</AppText>}
+        />
+        <ListRow
+          icon={Fingerprint}
+          title="Fingerprint / face lock"
+          subtitle={lock.supported ? "Ask for biometrics when opening WePay" : "Set up fingerprint or face unlock in your phone settings to use this"}
+          right={
+            <Switch
+              value={lock.enabled}
+              disabled={!lock.supported}
+              onValueChange={async (v) => {
+                setLockMsg(null);
+                const r = await lock.setEnabled(v);
+                if (!r.ok && r.message) setLockMsg(r.message);
+              }}
+              trackColor={{ true: colors.mint, false: colors.border }}
+              thumbColor={colors.white}
+              accessibilityLabel="Fingerprint or face lock"
+            />
+          }
+        />
+        {lockMsg ? <AppText variant="small" color={colors.danger}>{lockMsg}</AppText> : null}
+      </View>
       <AppText variant="h3">Signed-in devices</AppText>
       <AppText variant="caption" color={colors.textMuted} style={{ marginBottom: space.lg }}>
         Sessions refresh automatically and expire after 30 days without use. Remove any device you don't recognise.

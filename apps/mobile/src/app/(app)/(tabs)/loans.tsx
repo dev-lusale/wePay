@@ -5,7 +5,7 @@ import { FilePlus2, Landmark } from "lucide-react-native";
 import { HeroHeader, OfflineBanner } from "@/components/Screen";
 import { AppText, Button, Card, Chip, EmptyState, ErrorState, ListSkeleton, ProgressBar, Touchable } from "@/components/ui";
 import { LoanStatusBadge } from "@/components/finance";
-import { useLoans } from "@/lib/queries";
+import { useLoanQuote, useLoans } from "@/lib/queries";
 import { formatDate, formatZMW, num } from "@/lib/format";
 import { errorMessage, isNetworkError } from "@/lib/api";
 import { colors, space } from "@/lib/theme";
@@ -20,6 +20,7 @@ const FILTERS = [
 export default function LoansScreen() {
   const router = useRouter();
   const q = useLoans();
+  const limits = useLoanQuote();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
   const loans = useMemo(() => {
     const all = q.data ?? [];
@@ -34,6 +35,13 @@ export default function LoansScreen() {
       <HeroHeader>
         <AppText variant="h1" color={colors.white}>My loans</AppText>
         <AppText variant="caption" color={colors.onDarkMuted}>Applications, active loans and history</AppText>
+        {limits.data ? (
+          <View style={styles.max}>
+            <AppText variant="small" color={colors.onDarkMuted}>Your maximum loan amount</AppText>
+            <AppText variant="h2" color={colors.mint}>{formatZMW(limits.data.maxLoan)}</AppText>
+            <AppText variant="small" color={colors.onDarkMuted}>3× your declared monthly salary · {limits.data.rules.annualInterestRate}% p.a.</AppText>
+          </View>
+        ) : null}
         {!hasOpen && q.isSuccess && (
           <Button title="Apply for a loan" icon={FilePlus2} onPress={() => router.push("/loans/apply")} style={{ marginTop: space.lg }} />
         )}
@@ -106,5 +114,6 @@ function Meta({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  max: { marginTop: space.lg, backgroundColor: colors.navy2, borderRadius: 16, padding: space.lg },
   filters: { flexDirection: "row", gap: space.sm, padding: space.xl, paddingBottom: space.lg },
 });

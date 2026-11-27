@@ -5,7 +5,8 @@ import { ArrowLeftRight, Search, X } from "lucide-react-native";
 import { HeroHeader, OfflineBanner } from "@/components/Screen";
 import { AppText, Chip, EmptyState, ErrorState, ListSkeleton } from "@/components/ui";
 import { TransactionRow } from "@/components/finance";
-import { useDebounced, useTransactions, type TxFilters } from "@/lib/queries";
+import { useDebounced, useTransactions, useTxSummary, type TxFilters } from "@/lib/queries";
+import { formatZMW } from "@/lib/format";
 import { errorMessage, isNetworkError } from "@/lib/api";
 import { colors, font, radius, space } from "@/lib/theme";
 import type { TransactionType } from "@/lib/types";
@@ -39,6 +40,7 @@ export default function TransactionsScreen() {
     [q, type, days]
   );
   const tx = useTransactions(filters);
+  const summary = useTxSummary();
   const items = tx.data?.pages.flat() ?? [];
   const filtered = !!(q || type || days);
 
@@ -61,7 +63,12 @@ export default function TransactionsScreen() {
         </View>
       </HeroHeader>
       <OfflineBanner />
-      <View style={{ paddingTop: space.lg, gap: space.sm }}>
+      <View style={styles.totals}>
+        <Total label="Total disbursed" value={summary.data?.totalDisbursed} color={colors.success} />
+        <Total label="Total repaid" value={summary.data?.totalRepaid} />
+        <Total label="Total fees" value={summary.data?.totalFees} color={colors.warning} />
+      </View>
+      <View style={{ paddingTop: space.md, gap: space.sm }}>
         <FlatList horizontal data={TYPES} keyExtractor={(t) => t.label} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} renderItem={({ item }) => <Chip label={item.label} active={type === item.key} onPress={() => setType(item.key)} />} />
         <FlatList horizontal data={PERIODS} keyExtractor={(t) => t.label} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} renderItem={({ item }) => <Chip label={item.label} active={days === item.days} onPress={() => setDays(item.days)} />} />
       </View>
@@ -74,7 +81,7 @@ export default function TransactionsScreen() {
           data={items}
           keyExtractor={(t) => t.id}
           contentContainerStyle={{ paddingHorizontal: space.xl, paddingBottom: space.xxxl, flexGrow: 1 }}
-          refreshControl={<RefreshControl refreshing={tx.isRefetching && !tx.isFetchingNextPage} onRefresh={() => void tx.refetch()} colors={[colors.turquoise]} />}
+          refreshControl={<RefreshControl refreshing={tx.isRefetching && !tx.isFetchingNextPage} onRefresh={() => { void tx.refetch(); void summary.refetch(); }} colors={[colors.turquoise]} />}
           renderItem={({ item }) => <TransactionRow tx={item} onPress={() => router.push({ pathname: "/transactions/[id]", params: { id: item.id } })} />}
           onEndReachedThreshold={0.4}
           onEndReached={() => tx.hasNextPage && !tx.isFetchingNextPage && tx.fetchNextPage()}
@@ -92,7 +99,18 @@ export default function TransactionsScreen() {
   );
 }
 
+function Total({ label, value, color = colors.text }: { label: string; value?: number; color?: string }) {
+  return (
+    <View style={styles.total}>
+      <AppText variant="small" color={colors.textMuted} numberOfLines={1}>{label}</AppText>
+      <AppText variant="bodyStrong" color={color} numberOfLines={1} adjustsFontSizeToFit>{value === undefined ? "—" : formatZMW(value, { decimals: 0 })}</AppText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  totals: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.xl, paddingTop: space.lg },
+  total: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md },
   search: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.white, borderRadius: radius.md, paddingHorizontal: space.lg, marginTop: space.lg, minHeight: 50 },
   searchInput: { flex: 1, fontFamily: font.regular, fontSize: 15, color: colors.text, paddingVertical: 10 },
   chips: { gap: space.sm, paddingHorizontal: space.xl },
