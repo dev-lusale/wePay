@@ -26,7 +26,7 @@ export function OfflineBanner() {
     <Animated.View entering={FadeInDown} exiting={FadeOutUp} style={styles.offline} accessibilityLiveRegion="polite">
       <WifiOff size={14} color={colors.white} />
       <AppText variant="small" color={colors.white}>
-        You're offline — showing what was last loaded
+        No network connection — showing what was last loaded
       </AppText>
     </Animated.View>
   );

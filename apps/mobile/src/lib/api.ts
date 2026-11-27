@@ -11,7 +11,7 @@ import type { TokenResponse } from "./types";
  */
 
 const REFRESH_KEY = "wepay.refreshToken";
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 30_000; // slow mobile networks + serverless cold starts
 
 let accessToken: string | null = null;
 let refreshInFlight: Promise<boolean> | null = null;
@@ -23,8 +23,8 @@ export class ApiError extends Error {
   }
 }
 export class NetworkError extends Error {
-  constructor() {
-    super("You appear to be offline. Check your connection and try again.");
+  constructor(public detail?: string) {
+    super("We couldn't reach WePay. Check your mobile data or Wi-Fi and try again.");
   }
 }
 
@@ -62,10 +62,19 @@ async function rawFetch(path: string, init: RequestInit & { auth?: boolean } = {
     ...((init.headers as Record<string, string>) ?? {}),
   };
   if (init.auth !== false && accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const attempt = () => fetch(`${API_URL}${path}`, { ...init, headers, signal: controller.signal });
   try {
-    return await fetch(`${API_URL}${path}`, { ...init, headers, signal: controller.signal });
-  } catch {
-    throw new NetworkError();
+    try {
+      return await attempt();
+    } catch (first) {
+      // One quick retry: mobile radios often drop the first request after waking up.
+      if (controller.signal.aborted) throw first;
+      await new Promise((r) => setTimeout(r, 800));
+      return await attempt();
+    }
+  } catch (e) {
+    const aborted = controller.signal.aborted;
+    throw new NetworkError(aborted ? "timeout" : e instanceof Error ? e.message : String(e));
   } finally {
     clearTimeout(timer);
   }
@@ -144,6 +153,8 @@ export async function api<T>(
 }
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof ApiError || e instanceof NetworkError) return e.message;
+  // The detail helps support diagnose carrier/DNS/TLS problems from a screenshot.
+  if (e instanceof NetworkError) return e.detail ? `${e.message} (${e.detail})` : e.message;
+  if (e instanceof ApiError) return e.message;
   return "Something went wrong. Please try again.";
 }
