@@ -56,6 +56,9 @@ model User {
   creditProfile     CreditProfile?
   loans             Loan[]
   transactions      Transaction[]
+  mobileSessions    MobileSession[]
+  passwordResets    PasswordResetToken[]
+  auditLogs         AuditLog[]
 
   @@map("users")
 }
@@ -126,4 +129,66 @@ model Transaction {
   createdAt   DateTime        @default(now())
 
   @@map("transactions")
+}
+
+// ─── Mobile app support (additive; no existing tables changed) ────────────────
+
+/// One row per signed-in mobile device. The refresh token itself is never
+/// stored — only its SHA-256 hash. Each refresh rotates the token; the
+/// previous hash is kept so a replayed (stolen) token revokes the session.
+model MobileSession {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash  String    @unique
+  previousTokenHash String?
+  deviceName        String?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+  lastUsedAt        DateTime  @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  revokedReason     String?
+
+  @@index([userId])
+  @@index([previousTokenHash])
+  @@map("mobile_sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+
+  @@map("rate_limit_buckets")
 }

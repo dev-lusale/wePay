@@ -1,19 +1,16 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { calculateMaxLoanAmount } from "@/lib/utils";
+import { getRequestUser, unauthorized } from "@/lib/api-auth";
+import { maxLoanForSalary } from "@/lib/loan-rules";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(request: NextRequest) {
+  const authUser = await getRequestUser(request);
+  if (!authUser) return unauthorized();
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: authUser.id },
     include: {
       employmentProfile: true,
       loans: {
@@ -36,7 +33,7 @@ export async function GET() {
   const monthlySalary = user.employmentProfile
     ? Number(user.employmentProfile.monthlySalary)
     : 0;
-  const maxLoan = calculateMaxLoanAmount(monthlySalary);
+  const maxLoan = maxLoanForSalary(monthlySalary);
   const activeLoan = user.loans[0];
   const totalBorrowed = activeLoan ? Number(activeLoan.amount) : 0;
   const availableCredit = Math.max(0, maxLoan - totalBorrowed);

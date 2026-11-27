@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["./src/*"],
+      "next-auth": ["./tests/api/stubs/next-auth.ts"]
+    }
+  },
+  "include": ["../src/**/*.ts", "./**/*.ts"]
+}

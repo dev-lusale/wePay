@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { audit } from "@/lib/audit";
+import { getClientIp } from "@/lib/request-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +22,9 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = await rateLimit(`register:ip:${getClientIp(request)}`, 10, 60 * 60);
+    if (!rl.allowed) return tooManyRequests(60 * 60);
+
     const body = await request.json();
     const data = registerSchema.parse(body);
 
@@ -74,6 +80,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await audit("REGISTER", { userId: user.id, req: request });
+
     return NextResponse.json(
       { message: "Account created successfully", userId: user.id },
       { status: 201 }
@@ -87,6 +95,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.error("Registration error:", error);
+
+    // Setup hints below are for local development only; in production they
+    // would leak infrastructure details to the public.
+    if (error instanceof Error && process.env.NODE_ENV === "production") {
+      if (error.message.includes("Unique constraint") || error.message.includes("P2002")) {
+        return NextResponse.json(
+          { message: "An account with these details already exists." },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    }
 
     if (error instanceof Error) {
       // Database not connected / wrong credentials

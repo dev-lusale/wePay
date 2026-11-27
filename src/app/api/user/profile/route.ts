@@ -1,18 +1,15 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
+import { getRequestUser, unauthorized } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(request: NextRequest) {
+  const authUser = await getRequestUser(request);
+  if (!authUser) return unauthorized();
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: authUser.id },
     select: {
       id: true,
       email: true,
